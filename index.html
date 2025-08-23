@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Voice Characterizer</title>
+  <meta name="description" content="Speak and hear your words as different characters using web speech synthesis." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%230ea5e9'/%3E%3Ctext x='50' y='58' font-size='48' text-anchor='middle' fill='white'%3EV%3C/text%3E%3C/svg%3E" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          boxShadow: {
+            glass: '0 4px 30px rgba(0, 0, 0, 0.1)'
+          },
+          colors: {
+            brand: {
+              50: '#ecfeff', 100: '#cffafe', 200: '#a5f3fc', 300: '#67e8f9', 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2', 700: '#0e7490', 800: '#155e75', 900: '#164e63'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .backdrop {
+      background: radial-gradient(1200px 600px at 10% -10%, rgba(14,165,233,.25), transparent),
+                  radial-gradient(900px 600px at 110% 10%, rgba(59,130,246,.18), transparent),
+                  radial-gradient(800px 600px at 50% 120%, rgba(16,185,129,.15), transparent);
+    }
+  </style>
+</head>
+<body class="min-h-screen backdrop text-slate-800">
+  <header class="sticky top-0 z-10 backdrop-blur bg-white/60 border-b border-white/40">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-brand-500 text-white grid place-items-center font-bold">V</div>
+        <div>
+          <h1 class="text-lg font-semibold">Voice Characterizer</h1>
+          <p class="text-xs text-slate-500">Speak and hear it as a character</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 text-sm">
+        <button id="helpBtn" class="px-3 py-1.5 rounded-md border border-slate-300 hover:bg-white">Help</button>
+        <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API" target="_blank" class="px-3 py-1.5 rounded-md bg-slate-900 text-white hover:bg-slate-800">Web Speech API</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <!-- Controls -->
+    <section class="grid gap-4 md:grid-cols-[1fr_380px]">
+      <div class="bg-white/70 backdrop-blur rounded-2xl shadow-glass border border-white/50 p-4 md:p-6">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div class="flex items-center gap-2">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" id="recDot" title="Status"></span>
+            <span class="text-sm text-slate-600" id="statusText">Idle</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="micBtn" class="px-4 py-2 rounded-lg bg-brand-600 text-white hover:bg-brand-700 active:scale-[.98]">Start Listening</button>
+            <button id="speakBtn" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-white">Speak</button>
+            <button id="clearBtn" class="px-3 py-2 rounded-lg border border-slate-300 hover:bg-white" title="Clear">Clear</button>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <label for="transcript" class="block text-sm font-medium text-slate-600 mb-1">Transcript</label>
+          <textarea id="transcript" rows="6" class="w-full rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-400 px-3 py-2 bg-white/80" placeholder="Press Start Listening and speak, or type here..."></textarea>
+          <p class="text-xs text-slate-500 mt-1" id="hint">Tip: say "Change character to Hulk" to switch while speaking.</p>
+        </div>
+      </div>
+
+      <!-- Characters -->
+      <aside class="bg-white/70 backdrop-blur rounded-2xl shadow-glass border border-white/50 p-4 md:p-6">
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold">Characters</h2>
+          <select id="voiceLang" class="text-sm border border-slate-300 rounded-md px-2 py-1 bg-white/80">
+            <option value="auto" selected>Auto Language</option>
+            <option value="en-US">English (US)</option>
+            <option value="en-GB">English (UK)</option>
+            <option value="hi-IN">Hindi</option>
+            <option value="es-ES">Spanish</option>
+            <option value="fr-FR">French</option>
+          </select>
+        </div>
+        <div id="characterGrid" class="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+      </aside>
+    </section>
+
+    <!-- Output -->
+    <section class="mt-6 bg-white/70 backdrop-blur rounded-2xl shadow-glass border border-white/50 p-4 md:p-6">
+      <h2 class="font-semibold">Output</h2>
+      <div class="mt-3 flex flex-wrap items-center gap-3 text-sm">
+        <label class="inline-flex items-center gap-2">
+          <span class="text-slate-600">Rate</span>
+          <input id="rate" type="range" min="0.5" max="2" step="0.05" value="1" class="w-40">
+          <span id="rateVal" class="w-10 text-right">1.00</span>
+        </label>
+        <label class="inline-flex items-center gap-2">
+          <span class="text-slate-600">Pitch</span>
+          <input id="pitch" type="range" min="0" max="2" step="0.05" value="1" class="w-40">
+          <span id="pitchVal" class="w-10 text-right">1.00</span>
+        </label>
+        <button id="stopSpeakBtn" class="ml-auto px-3 py-1.5 rounded-md border border-slate-300 hover:bg-white">Stop Voice</button>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">Note: Browser TTS is used. Voice availability varies by device and language.</p>
+    </section>
+  </main>
+
+  <footer class="max-w-6xl mx-auto px-4 pb-10 text-xs text-slate-500">
+    <p>Built with Tailwind CSS, Web Speech API (Recognition + Synthesis). No server required.</p>
+  </footer>
+
+  <dialog id="helpDialog" class="rounded-xl p-0 w-[min(560px,95vw)]">
+    <div class="p-5 border-b flex items-center justify-between">
+      <h3 class="font-semibold">How to use</h3>
+      <button id="closeHelp" class="text-slate-500 hover:text-slate-700">✕</button>
+    </div>
+    <div class="p-5 space-y-3 text-sm">
+      <p><strong>1.</strong> Pick a character from the panel.</p>
+      <p><strong>2.</strong> Click <em>Start Listening</em> and speak. Or type text into the transcript box.</p>
+      <p><strong>3.</strong> Click <em>Speak</em> to hear it in the selected character's style.</p>
+      <p class="text-slate-500">You can say commands like: "Change character to Hulk", "Set rate to 1.2", "Set pitch to 0.8" while recording.</p>
+      <p class="text-slate-500">This demo changes pitch/rate and tries to choose a suitable system TTS voice. True voice cloning needs a server-side ML model which is outside the browser.</p>
+    </div>
+  </dialog>
+
+  <script src="./js/app.js" type="module"></script>
+</body>
+</html>
