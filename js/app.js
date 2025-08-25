@@ -88,6 +88,8 @@ let selectedCharacter = CHARACTERS[0].id;
 let voices = [];
 let recognizing = false;
 let recognition; // SpeechRecognition instance
+// Prevent duplicate/rapid speech of the same text
+let lastSpoken = { text: '', time: 0 };
 
 // ---- UI helpers ----
 function renderCharacters() {
@@ -149,7 +151,9 @@ function pickVoiceForCharacter(ch, langPref) {
   // Filter by language if selected
   let pool = voices;
   if (langPref && langPref !== 'auto') {
-    pool = voices.filter(v => (v.lang || '').startsWith(langPref));
+    const filtered = voices.filter(v => (v.lang || '').startsWith(langPref));
+    // If filtering empties the pool, gracefully fallback to all voices
+    pool = filtered.length ? filtered : voices;
   }
   // Try hinted names first
   for (const hint of ch.voiceHints) {
@@ -162,6 +166,13 @@ function pickVoiceForCharacter(ch, langPref) {
 
 function speak(text) {
   if (!text || !window.speechSynthesis) return;
+  // Debounce identical requests within a short window to avoid double playback
+  const now = Date.now();
+  if (text === lastSpoken.text && (now - lastSpoken.time) < 1200) {
+    return; // ignore duplicate trigger
+  }
+  lastSpoken = { text, time: now };
+
   const ch = CHARACTERS.find(c => c.id === selectedCharacter) || CHARACTERS[0];
   const utter = new SpeechSynthesisUtterance(text);
   const langPref = voiceLang.value;
@@ -175,7 +186,10 @@ function speak(text) {
   utter.rate = clamp(ch.baseRate * userRate, 0.5, 2);
   utter.pitch = clamp(ch.basePitch * userPitch, 0, 2);
 
-  window.speechSynthesis.cancel(); // stop previous
+  // If already speaking, cancel first to prevent overlap/echo
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+  }
   window.speechSynthesis.speak(utter);
 }
 
